@@ -1,0 +1,74 @@
+<project name="ant-jsvalidate-example">
+
+  <scriptdef name="jsvalidate" language="javascript">
+    <element name="fileset" type="fileset"/>
+    <![CDATA[
+importClass(java.io.File);
+importClass(java.io.FileReader);
+importClass(java.io.BufferedReader);
+
+var failures = 0;
+
+function load(fname) {
+  var reader, content, line;
+
+  reader = new BufferedReader(new FileReader(fname));
+  content = '';
+  while (true) {
+    line = reader.readLine();
+    if (line === null) break;
+      content += line + '\n';
+  }
+
+  return content;
+}
+
+function validate(filename) {
+  var content, syntax, i, err;
+
+  try {
+    content = load(filename);
+    syntax = esprima.parse(content, { tolerant: true });
+    for (i = 0; i < syntax.errors.length; ++i) {
+      if (i === 0) self.log(filename + ':');
+      err = syntax.errors[i];
+      self.log('  ' + err.message);
+      ++failures;
+    }
+  } catch (e) {
+    self.log(filename + ':');
+    self.log('  ' + e.toString());
+    ++failures;
+  }
+}
+
+function validateFiles(filesets) {
+  var i, j, fileset, scanner, files, basedir, filename;
+
+  for (i = 0; i < filesets.size(); ++i) {
+    fileset = filesets.get(i);
+    scanner = fileset.getDirectoryScanner(project);
+    scanner.scan();
+    files = scanner.getIncludedFiles();
+    for(j = 0; j < files.length; j++) {
+      filename = fileset.getDir(project) + '/' + files[j];
+      validate(filename);
+    }
+  }
+}
+
+eval(load('lib/esprima.js'));
+validateFiles(elements.get('fileset'));
+if (failures > 0) self.fail('Invalid JavaScript!');
+    ]]>
+  </scriptdef>
+
+  <target name="validate-javascript">
+    <jsvalidate>
+      <fileset dir="src/">
+        <include name="**/*.js"/>
+      </fileset>
+    </jsvalidate>
+  </target>
+
+</project>
